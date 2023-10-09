@@ -14,10 +14,9 @@ $ pip install pytest-mock
 ```
 
 ## pytest-mockの実行
-### テスト対象
+### 例１： 入力したURLをGETしてステータスコードを返す関数のテスト
 
-- 入力したURLをGETしてステータスコードを返す関数
-
+#### テスト対象
 ```python
 import requests
 
@@ -45,12 +44,12 @@ def get_weather_data(city: str) -> dict:
 
 ```
 
-## Pytest Mockの基本的な使用方法
-- 以下は、外部のAPIを呼び出すrequest_status_code関数を模擬化する簡単な例
+
+
+#### テストコード： **requests.get関数自体をmock化する**
 - `mocker.patch(パッケージ名.クラス名.メソッド名)`で対象をmock化していく
 
 
-###  **requests.get関数自体をmock化する**
 ```python
 from .lec06_function import get_weather_data
 
@@ -85,4 +84,28 @@ def test_get_weather_data(mocker):  # mockerフィクスチャを引数として
     
     # call_countを使うことで、呼び出せれた回数を確認できる。
     assert mock_get.call_count == 1  
+```
+
+
+### 例２：ファイルシステム操作のモッキング
+- ファイルの読み書きをモック化して、コードがファイルシステムを正しく操作しているかどうかをテスト
+
+
+#### テスト対象
+```python
+def read_file(file_path: str) -> str:
+    with open(file_path, 'r') as file:
+        return file.read()
+```
+
+#### テストコード
+```python
+import pytest
+from file_handler import read_file
+
+def test_read_file(mocker):
+    mocker.patch('builtins.open', mocker.mock_open(read_data='hello world'))  # builtins.openをモック化
+    
+    content = read_file('test.txt')
+    assert content == 'hello world'
 ```
