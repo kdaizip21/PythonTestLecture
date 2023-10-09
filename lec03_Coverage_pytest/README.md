@@ -156,7 +156,7 @@ TOTAL                           10      1    90%
 - `--cov-branch`オプションでC1分岐のチェックができる
     ```shell script
     # --cov-branchをつける
-    $ pytest --cov=. --cov-report=term-missing　--cov-branch
+    $ pytest --cov=. --cov-report=term-missing --cov-branch
     ```
 
 - 実行結果
