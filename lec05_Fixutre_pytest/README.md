@@ -121,3 +121,170 @@ def create_file_and_return_path():
 - fixtureで利用する場合、テスト完了後に`yeild`以降が実行される特徴を持つ
     - ファイル削除などのtearDown処理はこのように記載していく
 - Pytestでは`yeild`が複数あると、Pytestから怒られる
+- 
+
+
+## その他 Fixtureの使用例
+
+### 1. データベース接続のセットアップと終了
+
+```python
+# conftest.py
+import pytest
+import psycopg2
+
+@pytest.fixture
+def db_connection():
+    conn = psycopg2.connect(database="testdb", user="user", password="pass", host="127.0.0.1", port="5432")
+    yield conn  # データベース接続を返します
+    conn.close()  # テスト後にデータベース接続を閉じます
+
+# test_db.py
+def test_db_query(db_connection):
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT 1")
+    result = cursor.fetchone()
+    assert result[0] == 1
+    cursor.close()
+```
+
+### 2. 一時ファイルの作成と削除
+
+```python
+# conftest.py
+import pytest
+import os
+
+@pytest.fixture
+def temp_file():
+    file_path = './temp.txt'
+    with open(file_path, 'w') as file:
+        yield file_path  # 一時ファイルのパスを返します。
+    os.remove(file_path)  # テスト後に一時ファイルを削除します。
+
+# test_file.py
+def test_file_existence(temp_file):
+    assert os.path.isfile(temp_file)  # 一時ファイルが存在することを確認します。
+```
+
+### 3. 環境変数の設定とクリア
+
+```python
+# conftest.py
+import pytest
+import os
+
+@pytest.fixture
+def set_env_var():
+    os.environ['TEST_VAR'] = '123'
+    yield
+    del os.environ['TEST_VAR']  # テスト後に環境変数をクリアします。
+
+# test_env.py
+def test_env_var(set_env_var):
+    assert os.getenv('TEST_VAR') == '123'  # 環境変数が正しく設定されていることを確認します。
+```
+
+### 4. モックオブジェクトの作成とリセット
+
+```python
+# conftest.py
+import pytest
+from unittest.mock import MagicMock
+
+@pytest.fixture
+def mock_object():
+    mock = MagicMock()
+    yield mock  # モックオブジェクトを返します。
+    mock.reset_mock()  # テスト後にモックをリセットします。
+
+# test_mock.py
+def test_mock_behavior(mock_object):
+    mock_object.do_something()
+    mock_object.do_something.assert_called_once()  # モックが呼び出されたことを確認します。
+```
+
+### 5. カスタム設定のロードとリセット
+
+```python
+# conftest.py
+import pytest
+import my_config_module
+
+@pytest.fixture
+def custom_config():
+    original_config = my_config_module.get_config()
+    my_config_module.load_config('test_config.json')
+    yield
+    my_config_module.load_config(original_config)  # テスト後に設定をリセットします。
+
+# test_config.py
+def test_custom_config(custom_config):
+    config = my_config_module.get_config()
+    assert config['setting'] == 'test_value'  # 設定が正しくロードされていることを確認します。
+```
+
+
+
+## AWSでのFixture
+- AWSに対してFixtureすることも可能だが、lec07の `moto`を使うほうが良い
+
+### 1. AWS S3バケットへのアクセステスト
+
+```python
+# conftest.py
+import pytest
+import boto3
+
+@pytest.fixture
+def s3_bucket():
+    s3 = boto3.client('s3')
+    bucket_name = 'test-bucket'
+    yield s3, bucket_name  # S3クライアントとバケット名を返します。
+
+# test_s3.py
+def test_s3_list_objects(s3_bucket):
+    s3, bucket_name = s3_bucket
+    response = s3.list_objects_v2(Bucket=bucket_name)
+    assert 'Contents' in response  # バケット内にオブジェクトが存在することを確認します。
+```
+
+### 2. AWS DynamoDBテーブルへのアクセステスト
+
+```python
+# conftest.py
+import pytest
+import boto3
+
+@pytest.fixture
+def dynamodb_table():
+    dynamodb = boto3.resource('dynamodb')
+    table_name = 'test-table'
+    table = dynamodb.Table(table_name)
+    yield table  # DynamoDBテーブルを返します。
+
+# test_dynamodb.py
+def test_dynamodb_get_item(dynamodb_table):
+    item = dynamodb_table.get_item(Key={'id': '123'})
+    assert 'Item' in item  # アイテムが正しく取得できることを確認します。
+```
+
+### 3. AWS Lambda関数の呼び出しテスト
+
+```python
+# conftest.py
+import pytest
+import boto3
+
+@pytest.fixture
+def lambda_client():
+    client = boto3.client('lambda')
+    function_name = 'test-function'
+    yield client, function_name  # Lambdaクライアントと関数名を返します。
+
+# test_lambda.py
+def test_lambda_invoke(lambda_client):
+    client, function_name = lambda_client
+    response = client.invoke(FunctionName=function_name, Payload='{"key": "value"}')
+    assert response['StatusCode'] == 200  # Lambda関数が正常に呼び出されることを確認します。
+```
