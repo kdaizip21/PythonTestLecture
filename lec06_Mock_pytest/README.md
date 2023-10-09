@@ -21,15 +21,28 @@ $ pip install pytest-mock
 ```python
 import requests
 
-def request_status_code(url):
+def get_weather_data(city: str) -> dict:
     """
-    指定されたURLにGETリクエストを送信し、ステータスコードを返します。
+    指定された都市の天気データを取得します。
+
+    Args:
+        city (str): 天気データを取得する都市の名前。
+
+    Returns:
+        dict: 天気データ。
     """
-    try:
-        response = requests.get(url)
-        return response.status_code
-    except Exception:
-        return 0
+    
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid=YOUR_API_KEY"  # APIのURLを作成します。
+    
+    # APIにリクエストを送信し、レスポンスを取得する
+    response = requests.get(url) 
+    
+    # レスポンスのステータスコードが200ではない場合、エラーを発生させる
+    if response.status_code != 200:
+        raise ValueError(f"Failed to retrieve data: {response.text}")
+    # レスポンスのJSONコンテンツを返す
+    return response.json()
+
 ```
 
 ## Pytest Mockの基本的な使用方法
@@ -37,73 +50,39 @@ def request_status_code(url):
 - `mocker.patch(パッケージ名.クラス名.メソッド名)`で対象をmock化していく
 
 
-### 1. **特定の値を返すようにMock化**
+###  **requests.get関数自体をmock化する**
 ```python
-def test_request_status_code_mock_return_value(mocker):
-    status_code = 200
-    url = "https://example.com"
+from .lec06_function import get_weather_data
+
+# test_weather.py
+
+import pytest
+# from weather import get_weather_data
+
+def test_get_weather_data(mocker):  # mockerフィクスチャを引数として受け取ります。
+    """
+    get_weather_data関数のテストを実行します。
+    """
     
-    # Mock化して、status_code=200 を返すようにする
-    mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
+    # weather.requests.get関数をモック化
+    mock_get = mocker.patch('src.lec06_function.requests.get')
     
-    assert request_status_code(url) == status_code
-```
-
-### 2. **Mock化した関数が1回だけ呼ばれたことを確認**
-```python
-def test_request_status_code_call_once(mocker):
-    status_code = 200
-    url = "https://example.com"
+    # モックオブジェクトのstatus_code属性を200に設定
+    mock_get.return_value.status_code = 200
     
-    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
-    request_status_code(url)
-    mock_obj.assert_called_once()
-```
+    # モックオブジェクトのjsonメソッドの戻り値を設定。
+    mock_get.return_value.json.return_value = {
+        "weather": [{"description": "clear sky"}]
+    }
 
-### 3. **Mock化した関数が指定された回数だけ呼ばれたことを確認**
-```python
-def test_request_status_code_call_10(mocker):
-    status_code = 200
-    url = "https://example.com"
-    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
-
-    for _ in range(10):
-        request_status_code(url)
+    city = "Tokyo"
     
-    assert mock_obj.call_count == 10
+    # 呼び出されたget_weather_data関数内の requests.get はモック化されており、返り値は上記で設定したものが入る
+    data = get_weather_data(city)  
+    
+    assert data == {"weather": [{"description": "clear sky"}]} 
+    
+    
+    # call_countを使うことで、呼び出せれた回数を確認できる。
+    assert mock_get.call_count == 1  
 ```
-
-### 4. **Mock化した関数が全く呼ばれていないことを確認**
-```python
-def test_request_status_code_no_call(mocker):
-    status_code = 200
-    url = "https://example.com"
-    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
-
-    mock_obj.assert_not_called()
-```
-
-### 5. **Mock化した関数を別の関数に置き換え**
-```python
-def return_200(url):
-    return 200
-
-def test_request_status_code_side_effect(mocker):
-    url = "https://example.com"
-    mock_obj = mocker.patch('path.to.request_status_code')
-
-    mock_obj.side_effect = return_200
-
-    assert request_status_code(url) == 200
-```
-
-### 6. **Mock化した関数から例外をスロー**
-```python
-def test_request_status_code_exception(mocker):
-    url = "https://example.com"
-    mock_obj = mocker.patch('path.to.request_status_code')
-    mock_obj.side_effect = Exception
-
-    assert request_status_code(url) == 0
-```
-
