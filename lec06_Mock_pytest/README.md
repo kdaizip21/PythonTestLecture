@@ -44,7 +44,7 @@ def test_request_status_code_mock_return_value(mocker):
     url = "https://example.com"
     
     # Mock化して、status_code=200 を返すようにする
-    mocker.patch('path.to.request_status_code', return_value=status_code)
+    mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
     
     assert request_status_code(url) == status_code
 ```
@@ -55,7 +55,7 @@ def test_request_status_code_call_once(mocker):
     status_code = 200
     url = "https://example.com"
     
-    mock_obj = mocker.patch('path.to.request_status_code', return_value=status_code)
+    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
     request_status_code(url)
     mock_obj.assert_called_once()
 ```
@@ -65,7 +65,7 @@ def test_request_status_code_call_once(mocker):
 def test_request_status_code_call_10(mocker):
     status_code = 200
     url = "https://example.com"
-    mock_obj = mocker.patch('path.to.request_status_code', return_value=status_code)
+    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
 
     for _ in range(10):
         request_status_code(url)
@@ -78,7 +78,7 @@ def test_request_status_code_call_10(mocker):
 def test_request_status_code_no_call(mocker):
     status_code = 200
     url = "https://example.com"
-    mock_obj = mocker.patch('path.to.request_status_code', return_value=status_code)
+    mock_obj = mocker.patch('src.lec06_function.request_status_code', return_value=status_code)
 
     mock_obj.assert_not_called()
 ```
