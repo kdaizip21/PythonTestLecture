@@ -25,7 +25,7 @@ $ pip install moto
 
 ### EC2のmock例
 - プロダクトコード
-    - EC2をDescribeして、インスタンスIDをプリントするだけの関数
+    - EC2をDescribeして、AMI のIDをリターンする関数
     
     ```python
     import boto3
@@ -33,13 +33,15 @@ $ pip install moto
     
     def describe_ec2() -> None:
         """
-        EC2をDescribeし、インスダンスIDを出力する
+        EC2をDescribeし、AMIのIDを出力する
         """
         ec2 = boto3.client('ec2')
-        # インスタンスIDを取得
+        # AMIのIDを取得
         image_response = ec2.describe_images()
         image_id = image_response['Images'][0]['ImageId']
         print(image_id)
+        
+        return image_id
     ```
 
 
@@ -53,19 +55,26 @@ $ pip install moto
     
     
     @mock_ec2
-    def test_start_instance():
-        ec2 = boto3.client('ec2')
-        # EC2を作成
-        ec2.run_instances(
-            ImageId='testImage',
-            MinCount=1,
-            MaxCount=1,
-            KeyName="ec2-1",
-            TagSpecifications=[{'ResourceType': 'instance',
-                                'Tags': [{'Key': 'Name', 'Value': 'ec2-1'}]}])
-        # appファイルを実行
+    def test_describe_ec2():
+        # EC2クライアントを作成
+        ec2 = boto3.client('ec2', region_name='us-east-1')
     
-        describe_ec2()
+        # EC2インスタンスを作成(mock)
+        instance = ec2.run_instances(ImageId='ami-12345678', MinCount=1, MaxCount=1)['Instances'][0]
+        instance_id = instance['InstanceId']
+    
+        # AMIを作成(mock)
+        ec2.create_image(InstanceId=instance_id, Name='Test Image')
+    
+        # mockで作成したEC2から最新のAMIのIDを取得
+        images_response = ec2.describe_images()
+        latest_image_id = images_response['Images'][0]['ImageId']
+    
+        # テストしたい関数であるdescribe_ec2関数を呼び出す
+        returned_image_id = describe_ec2()
+    
+        # 返されたイメージIDを検証
+        assert returned_image_id == latest_image_id
     ```
   
   

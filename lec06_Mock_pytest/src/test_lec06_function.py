@@ -1,9 +1,5 @@
-from .lec06_function import get_weather_data
-
-# test_weather.py
-
 import pytest
-# from weather import get_weather_data
+from .lec06_function import get_weather_data
 
 def test_get_weather_data(mocker):  # mockerフィクスチャを引数として受け取ります。
     """

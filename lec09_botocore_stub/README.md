@@ -1,4 +1,4 @@
-# botocore.stub 
+# botocore.stub.Stubber
 
   
     
@@ -10,22 +10,148 @@
     
     
 
-## botocore.stubとは
+## botocore.stub.Stubberとは
 - PythonのAWS SDKであるboto3ライブラリ内で提供されているAWS操作用スタブ
 - 公式サイト    
     https://botocore.amazonaws.com/v1/documentation/api/latest/reference/stubber.html
 - 2021年07月現在、日本語で読めるドキュメントは存在しない
     - [AWS SDK for Ruby　の公式ドキュメント](https://docs.aws.amazon.com/ja_jp/sdk-for-ruby/v3/developer-guide/stubbing.html) が唯一近いものとなる
     
-## botocore.stubの使い所
-- `moto`や`localstack`では再現できないテストの場合、botocore.stubを使う
+## botocore.stub.Stubberの使い所
+- `moto`や`localstack`では再現できないテストの場合、botocore.stub.Stubberを使う
     - `moto`、`localstack`が未サポートなAWSサービス
     - 強制的にAWS SDK（Boto3）から例外を出させる場合など
     
-- `botocore.stub`の使い方を理解すれば、`moto`、`localstack`は不要となるが、何を使っても良い
-    
+### メリット
+* 制御: Stubberは、特定のメソッド呼び出しに対するレスポンスを正確に制御ができる。これにより、特定のシナリオやエラー条件をシミュレートすることが容易となる。
+* 単純さ: Stubberは比較的単純で直感的なAPIを持っており、使い始めるのは簡単
+* 依存関係のなさ: Stubberはbotocoreに組み込まれており、追加の依存関係を必要としない
 
-## botocore.stubの使い方のイメージ
+### デメリット
+* 手動設定: Stubberを使用すると、各メソッド呼び出しに対する期待されるレスポンスを手動で設定する必要があります。これは、テストのセットアップが自分ですべて作る必要がある
+* 実装の不整合: motoやlocalstackはAWSサービスの動作をエミュレートするため、実際のAWSサービスの動作に近いテストを提供する可能性があります。一方、Stubberは手動で設定されたレスポンスを提供するため、実際のサービスの動作と異なる可能性がある。
+
+
+### 使い所
+- 基本は`moto`や`localstack`を使う。
+- サポートしていない場合のみ`botocore.stub.Stubber` を使う
+
+
+
+## Stubberの基本的な使用方法:
+
+1. **インストール**:
+   `boto3`と`botocore`は通常一緒にインストールされます。確認のために、以下のコマンドを実行できます。
+   ```bash
+   pip install boto3 botocore
+   ```
+
+2. **クライアントの作成**:
+   `boto3`を使用して、テストするAWSサービスのクライアントを作成します。
+   ```python
+   import boto3
+
+   client = boto3.client('s3')
+   ```
+
+3. **Stubberの作成**:
+   `botocore.stub.Stubber`を作成し、AWSサービスのクライアントを渡します。
+   ```python
+   from botocore.stub import Stubber
+
+   stubber = Stubber(client)
+   ```
+
+4. **レスポンスの追加**:
+   `Stubber`に追加したいレスポンスを指定します。これは、AWSサービスのクライアントメソッドが返すべきレスポンスを定義します。
+   ```python
+   response = {'Buckets': [{'Name': 'my-bucket'}]}
+   expected_params = {}
+   stubber.add_response('list_buckets', response, expected_params)
+   ```
+
+5. **Stubberのアクティベーション**:
+   `Stubber`をアクティベートして、モック化されたレスポンスを使用する準備をします。
+   ```python
+   stubber.activate()
+   ```
+
+6. **コードのテスト**:
+   コードを呼び出し、期待される動作をアサートします。
+   ```python
+   result = client.list_buckets()
+   assert result['Buckets'][0]['Name'] == 'my-bucket'
+   ```
+
+7. **Stubberのデアクティベーション**:
+   テストが完了したら、`Stubber`をデアクティベートしてクリーンアップします。
+   ```python
+   stubber.deactivate()
+   ```
+
+### サンプル実装:
+
+以下は、`Stubber`を使用して`boto3`のS3クライアントメソッドをモック化するサンプル実装です。
+
+- テスト対象。S3をリストバケットする関数
+```python
+import boto3
+
+def list_s3_buckets():
+    client = boto3.client('s3')
+    response = client.list_buckets()
+    
+    return [bucket['Name'] for bucket in response['Buckets']]
+```
+
+- テストコード
+```python
+import boto3
+import pytest
+from botocore.stub import Stubber
+
+def test_list_s3_buckets():
+    client = boto3.client('s3')
+    stubber = Stubber(client)
+
+    # 自身でレスポンスの内容を作成
+    mock_response = {'Buckets': [{'Name': 'my-bucket'}]}
+    stubber.add_response('list_buckets', mock_response)
+
+    # Stubberをアクティベート
+    stubber.activate()
+
+    # テスト対象の関数を呼び出し
+    buckets = list_s3_buckets()
+
+    # アサーション
+    assert buckets == ['my-bucket']
+
+    # Stubberをデアクティベート
+    stubber.deactivate()
+```
+
+このサンプル実装では、`list_s3_buckets`関数が`boto3`のS3クライアントを使用してバケットのリストを取得し、それらの名前を返すことを確認しています。`Stubber`は、`list_buckets`メソッドの呼び出しをモック化し、指定されたモックレスポンスを返します。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------
+
+## （他の例）botocore.stubの使い方のイメージ
 ```python
 # EC2 の情報をdescribeする処理o
 import boto3
